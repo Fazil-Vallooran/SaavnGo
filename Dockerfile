@@ -1,7 +1,7 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 
-# Install build dependencies
+# Install git (needed for some Go dependencies)
 RUN apk add --no-cache git
 
 # Set working directory
@@ -17,9 +17,9 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o jiosaavn-api .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 
-# Runtime stage
+# Final stage
 FROM alpine:latest
 
 # Install ca-certificates for HTTPS requests
@@ -27,11 +27,14 @@ RUN apk --no-cache add ca-certificates
 
 WORKDIR /root/
 
-# Copy binary from builder
-COPY --from=builder /app/jiosaavn-api .
+# Copy the binary from builder
+COPY --from=builder /app/main .
+
+# Copy config if you have a config file
+# COPY --from=builder /app/config.yaml .
 
 # Expose port
 EXPOSE 8080
 
 # Run the application
-CMD ["./jiosaavn-api"]
+CMD ["./main"]
