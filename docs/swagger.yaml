@@ -1,0 +1,240 @@
+basePath: /
+host: localhost:8080
+info:
+  contact:
+    email: your-email@example.com
+    name: API Support
+  description: A public read-only API for JioSaavn music data
+  license:
+    name: MIT
+    url: http://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: JioSaavn API
+  version: "1.0"
+paths:
+  /album/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns detailed information about an album including songs and
+        artists
+      parameters:
+      - description: Album ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get album details
+      tags:
+      - Albums
+  /artist/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns detailed information about an artist including bio, top
+        songs, and albums
+      parameters:
+      - description: Artist ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get artist details
+      tags:
+      - Artists
+  /lyrics/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns lyrics for a specific song with proper line breaks
+      parameters:
+      - description: Lyrics ID (usually same as song ID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get song lyrics
+      tags:
+      - Lyrics
+  /search:
+    get:
+      consumes:
+      - application/json
+      description: Comprehensive search results with pagination support for songs,
+        albums, artists, and playlists
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: song
+        description: 'Search type: song, album, artist, playlist'
+        in: query
+        name: type
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Results per page (max 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Full search with pagination
+      tags:
+      - Search
+  /search/songs/autocomplete:
+    get:
+      consumes:
+      - application/json
+      description: Lightweight song search optimized for quick results (returns only
+        essential fields)
+      parameters:
+      - description: Search query
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 10
+        description: Number of results (max 50)
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Fast song autocomplete
+      tags:
+      - Search
+  /song/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns detailed information about a song including artists, album,
+        download URLs, and images
+      parameters:
+      - description: Song ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get song details
+      tags:
+      - Songs
+schemes:
+- http
+- https
+swagger: "2.0"
