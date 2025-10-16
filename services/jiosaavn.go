@@ -32,7 +32,7 @@ func GetSongHandler(c *gin.Context) {
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Missing song ID",
+			"error":   "Missing song ID",
 		})
 		return
 	}
@@ -42,7 +42,7 @@ func GetSongHandler(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to fetch song",
+			"error":   "Failed to fetch song",
 		})
 		return
 	}
@@ -52,7 +52,7 @@ func GetSongHandler(c *gin.Context) {
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to parse response",
+			"error":   "Failed to parse response",
 		})
 		return
 	}
@@ -61,7 +61,7 @@ func GetSongHandler(c *gin.Context) {
 	if !ok {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Song not found",
+			"error":   "Song not found",
 		})
 		return
 	}
@@ -86,7 +86,7 @@ func GetAlbumHandler(c *gin.Context) {
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Missing album ID",
+			"error":   "Missing album ID",
 		})
 		return
 	}
@@ -97,7 +97,7 @@ func GetAlbumHandler(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to fetch album",
+			"error":   "Failed to fetch album",
 		})
 		return
 	}
@@ -107,7 +107,7 @@ func GetAlbumHandler(c *gin.Context) {
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to parse response",
+			"error":   "Failed to parse response",
 		})
 		return
 	}
@@ -120,7 +120,7 @@ func GetAlbumHandler(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
-				"error": "Album not found",
+				"error":   "Album not found",
 			})
 			return
 		}
@@ -129,7 +129,7 @@ func GetAlbumHandler(c *gin.Context) {
 	if len(albumData) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Album data is empty",
+			"error":   "Album data is empty",
 		})
 		return
 	}
@@ -154,7 +154,7 @@ func GetArtistHandler(c *gin.Context) {
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Missing artist ID",
+			"error":   "Missing artist ID",
 		})
 		return
 	}
@@ -165,7 +165,7 @@ func GetArtistHandler(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to fetch artist",
+			"error":   "Failed to fetch artist",
 		})
 		return
 	}
@@ -175,7 +175,7 @@ func GetArtistHandler(c *gin.Context) {
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to parse response",
+			"error":   "Failed to parse response",
 		})
 		return
 	}
@@ -184,7 +184,7 @@ func GetArtistHandler(c *gin.Context) {
 	if len(raw) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error": "Artist not found",
+			"error":   "Artist not found",
 		})
 		return
 	}
@@ -211,7 +211,7 @@ func GetLyricsHandler(c *gin.Context) {
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Missing song ID for Lyrics",
+			"error":   "Missing song ID for Lyrics",
 		})
 		return
 	}
@@ -223,7 +223,7 @@ func GetLyricsHandler(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to fetch lyrics",
+			"error":   "Failed to fetch lyrics",
 		})
 		return
 	}
@@ -233,7 +233,7 @@ func GetLyricsHandler(c *gin.Context) {
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to parse response",
+			"error":   "Failed to parse response",
 		})
 		return
 	}
@@ -265,14 +265,14 @@ func AutocompleteHandler(c *gin.Context) {
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Missing query parameter",
+			"error":   "Missing query parameter",
 		})
 		return
 	}
 
-	limit := 10
+	limit := 3
 	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 50 {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 10 {
 			limit = parsed
 		}
 	}
@@ -285,7 +285,7 @@ func AutocompleteHandler(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to fetch results",
+			"error":   "Failed to fetch results",
 		})
 		return
 	}
@@ -295,7 +295,7 @@ func AutocompleteHandler(c *gin.Context) {
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error": "Failed to parse response",
+			"error":   "Failed to parse response",
 		})
 		return
 	}
@@ -407,7 +407,7 @@ func GetFullSearchResults(query string, searchType string, page int, limit int) 
 	}
 	// Validate and normalize limit
 	if limit < 1 || limit > 10 {
-		return nil, errors.New("invalid limit: must be between 1 and 50")
+		return nil, errors.New("invalid limit: must be between 1 and 10")
 	}
 
 	// Determine which search endpoint to use based on type
@@ -467,7 +467,7 @@ func FullSearchHandler(c *gin.Context) {
 	if query == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
-			"error": "Missing query parameter",
+			"error":   "Missing query parameter",
 		})
 		return
 	}
@@ -481,7 +481,7 @@ func FullSearchHandler(c *gin.Context) {
 		}
 	}
 
-	limit := 20
+	limit := 5
 	if l := c.Query("limit"); l != "" {
 		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 50 {
 			limit = parsed
