@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -19,7 +20,7 @@ func FormatSong(data map[string]interface{}) map[string]interface{} {
 	if val, ok := data["320kbps"]; ok && val != nil {
 		is320kbps = fmt.Sprintf("%v", val) == "true"
 	}
-	
+
 	if !is320kbps {
 		mediaURL = strings.Replace(mediaURL, "_320.mp4", "_160.mp4", 1)
 	}
@@ -858,6 +859,12 @@ func FormatSongSearch(data map[string]interface{}) map[string]interface{} {
 
 		formattedResults = append(formattedResults, formatted)
 	}
+	// Sort by playCount (descending - most played first)
+	sort.Slice(formattedResults, func(i, j int) bool {
+		playCountI, _ := formattedResults[i]["playCount"].(int)
+		playCountJ, _ := formattedResults[j]["playCount"].(int)
+		return playCountI > playCountJ
+	})
 
 	return map[string]interface{}{
 		"success": true,
@@ -1116,4 +1123,3 @@ func getImageArray(data interface{}) []map[string]string {
 	}
 	return images
 }
-

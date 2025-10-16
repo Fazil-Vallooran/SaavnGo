@@ -398,16 +398,9 @@ func formatLightweightSong(data map[string]interface{}) map[string]interface{} {
 }
 
 // GetFullSearchResults uses search.getResults for paginated, comprehensive search
-func GetFullSearchResults(query string, searchType string, page int, limit int) (map[string]interface{}, error) {
+func GetFullSearchResults(query string, searchType string) (map[string]interface{}, error) {
 	if query == "" {
 		return nil, errors.New("missing query parameter")
-	}
-	if page < 1 {
-		return nil, errors.New("invalid page number: must be >= 1")
-	}
-	// Validate and normalize limit
-	if limit < 1 || limit > 10 {
-		return nil, errors.New("invalid limit: must be between 1 and 10")
 	}
 
 	// Determine which search endpoint to use based on type
@@ -425,8 +418,8 @@ func GetFullSearchResults(query string, searchType string, page int, limit int) 
 		callType = "search.getResults" // Default to songs
 	}
 
-	apiURL := fmt.Sprintf("%s?p=%d&q=%s&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=%d&__call=%s",
-		cfg.JioSaavnBaseURL, page, utils.EscapeString(query), limit, callType)
+	apiURL := fmt.Sprintf("%s?p=1&q=%s&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=20&__call=%s",
+		cfg.JioSaavnBaseURL, utils.EscapeString(query), callType)
 
 	resp, err := http.Get(apiURL)
 	if err != nil {
@@ -474,22 +467,8 @@ func FullSearchHandler(c *gin.Context) {
 
 	searchType := c.DefaultQuery("type", "song")
 
-	page := 1
-	if p := c.Query("page"); p != "" {
-		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
-			page = parsed
-		}
-	}
-
-	limit := 5
-	if l := c.Query("limit"); l != "" {
-		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 50 {
-			limit = parsed
-		}
-	}
-
 	// Get raw results from API
-	results, err := GetFullSearchResults(query, searchType, page, limit)
+	results, err := GetFullSearchResults(query, searchType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -512,4 +491,25 @@ func FullSearchHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, formatted)
+}
+
+// Helper to extract play_count safely
+func getPlayCountFromSong(song map[string]interface{}) int {
+	// Try direct field
+	if playCount, ok := song["play_count"].(string); ok {
+		if count, err := strconv.Atoi(playCount); err == nil {
+			return count
+		}
+	}
+
+	// Try nested in more_info
+	if moreInfo, ok := song["more_info"].(map[string]interface{}); ok {
+		if playCount, ok := moreInfo["play_count"].(string); ok {
+			if count, err := strconv.Atoi(playCount); err == nil {
+				return count
+			}
+		}
+	}
+
+	return 0
 }
