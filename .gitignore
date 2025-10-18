@@ -35,6 +35,12 @@ Thumbs.db
 bin/
 dist/
 build/
+# Go temporary binaries
+__debug_bin*
+*.exe
+*.exe~
+*.out
+
 
 # Temporary files
 tmp/
@@ -43,4 +49,13 @@ temp/
 
 # Log files
 *.log
-__debug_bin1641857383
+
+# Binaries and temporary files
+/go-build/
+/bin/
+/*.exe
+*.log
+
+# IDE stuff
+.vscode/
+.idea/
