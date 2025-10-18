@@ -10,6 +10,8 @@ func RegisterRoutes(r *gin.Engine) {
 	// Song routes - with trailing slash support
 	r.GET("/song/:id", services.GetSongHandler)
 	r.GET("/song/:id/", services.GetSongHandler)
+	r.GET("/songs/:token", services.GetSongFromTokenHandler)
+	r.GET("/songs/:token/", services.GetSongFromTokenHandler)
 	
 	// Lyrics routes
 	r.GET("/lyrics/:id", services.GetLyricsHandler)
