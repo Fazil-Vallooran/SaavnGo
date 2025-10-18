@@ -40,6 +40,162 @@ func FormatSong(data map[string]interface{}) map[string]interface{} {
 	return data
 }
 
+// FormatSongFromToken formats song data from the webapi.get endpoint
+// This endpoint has a different structure than other JioSaavn endpoints
+func FormatSongFromToken(data map[string]interface{}) map[string]interface{} {
+	// Extract more_info object
+	moreInfo, _ := data["more_info"].(map[string]interface{})
+	
+	// Get encrypted media URL and decrypt it
+	encryptedURL := GetString(moreInfo, "encrypted_media_url")
+	mediaURL := DecryptURL(encryptedURL)
+	
+	// Determine max available quality
+	has320 := GetString(moreInfo, "320kbps") == "true"
+	maxQuality := "_160.mp4"
+	if has320 {
+		maxQuality = "_320.mp4"
+	}
+	
+	// Build download URLs
+	downloadURLs := []map[string]string{
+		{"quality": "96kbps", "url": strings.Replace(mediaURL, maxQuality, "_96.mp4", 1)},
+		{"quality": "160kbps", "url": strings.Replace(mediaURL, maxQuality, "_160.mp4", 1)},
+	}
+	
+	if has320 {
+		downloadURLs = append(downloadURLs, map[string]string{
+			"quality": "320kbps",
+			"url":     mediaURL,
+		})
+	}
+	
+	// Build image array with multiple sizes
+	imageURL := GetString(data, "image")
+	// Replace 150x150 with different sizes (API returns 150x150 by default)
+	images := []map[string]string{
+		{"quality": "50x50", "url": strings.Replace(imageURL, "150x150", "50x50", 1)},
+		{"quality": "150x150", "url": imageURL},
+		{"quality": "500x500", "url": strings.Replace(imageURL, "150x150", "500x500", 1)},
+	}
+	
+	// Parse duration
+	durationStr := GetString(moreInfo, "duration")
+	duration := 0
+	if durationStr != "" {
+		duration, _ = strconv.Atoi(durationStr)
+	}
+	
+	// Parse explicit content
+	explicitContent := GetString(data, "explicit_content") == "1"
+	
+	// Parse play count
+	playCountStr := GetString(data, "play_count")
+	playCount := 0
+	if playCountStr != "" {
+		playCount, _ = strconv.Atoi(playCountStr)
+	}
+	
+	// Parse has lyrics
+	hasLyrics := GetString(moreInfo, "has_lyrics") == "true"
+	
+	// Build artists from artistMap
+	artistMap, _ := moreInfo["artistMap"].(map[string]interface{})
+	
+	primaryArtists := buildArtistsFromMap(artistMap, "primary_artists")
+	featuredArtists := buildArtistsFromMap(artistMap, "featured_artists")
+	allArtists := buildArtistsFromMap(artistMap, "artists")
+	
+	// Ensure arrays are not nil
+	if primaryArtists == nil {
+		primaryArtists = []map[string]interface{}{}
+	}
+	if featuredArtists == nil {
+		featuredArtists = []map[string]interface{}{}
+	}
+	if allArtists == nil {
+		allArtists = []map[string]interface{}{}
+	}
+	
+	return map[string]interface{}{
+		"id":              GetString(data, "id"),
+		"name":            GetString(data, "title"),
+		"type":            "song",
+		"year":            GetString(data, "year"),
+		"releaseDate":     GetString(moreInfo, "release_date"),
+		"duration":        duration,
+		"label":           GetString(moreInfo, "label"),
+		"explicitContent": explicitContent,
+		"playCount":       playCount,
+		"language":        GetString(data, "language"),
+		"hasLyrics":       hasLyrics,
+		"lyricsId":        nil,
+		"url":             GetString(data, "perma_url"),
+		"copyright":       GetString(moreInfo, "copyright_text"),
+		"album": map[string]interface{}{
+			"id":   GetString(moreInfo, "album_id"),
+			"name": GetString(moreInfo, "album"),
+			"url":  GetString(moreInfo, "album_url"),
+		},
+		"artists": map[string]interface{}{
+			"primary":  primaryArtists,
+			"featured": featuredArtists,
+			"all":      allArtists,
+		},
+		"image":       images,
+		"downloadUrl": downloadURLs,
+	}
+}
+
+// buildArtistsFromMap extracts artist data from the artistMap structure
+func buildArtistsFromMap(artistMap map[string]interface{}, key string) []map[string]interface{} {
+	if artistMap == nil {
+		return []map[string]interface{}{}
+	}
+	
+	artistsRaw, ok := artistMap[key]
+	if !ok {
+		return []map[string]interface{}{}
+	}
+	
+	artistsArray, ok := artistsRaw.([]interface{})
+	if !ok {
+		return []map[string]interface{}{}
+	}
+	
+	result := make([]map[string]interface{}, 0, len(artistsArray))
+	for _, artistRaw := range artistsArray {
+		artist, ok := artistRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		
+		result = append(result, map[string]interface{}{
+			"id":    GetString(artist, "id"),
+			"name":  GetString(artist, "name"),
+			"role":  GetString(artist, "role"),
+			"image": []map[string]string{
+				{
+					"quality": "50x50",
+					"url":     strings.Replace(GetString(artist, "image"), "150x150", "50x50", 1),
+				},
+				{
+					"quality": "150x150",
+					"url":     GetString(artist, "image"),
+				},
+				{
+					"quality": "500x500",
+					"url":     strings.Replace(GetString(artist, "image"), "150x150", "500x500", 1),
+				},
+			},
+			"type": GetString(artist, "type"),
+			"url":  GetString(artist, "perma_url"),
+		})
+	}
+	
+	return result
+}
+
 // FormatSongDetailed transforms raw JioSaavn API data into a clean, structured format
 func FormatSongDetailed(data map[string]interface{}) map[string]interface{} {
 	// First apply basic formatting

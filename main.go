@@ -6,6 +6,8 @@ import (
 	"jioSaavnAPI/middleware"
 	"jioSaavnAPI/routes"
 	"log"
+	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -58,6 +60,9 @@ func main() {
 		})
 	})
 
+	// 🔄 Start self-ping to keep the Render instance alive
+	keepAlive("https://jiosaavnapi-i3mb.onrender.com/health", 12*time.Minute)
+
 	// Start server
 	serverAddr := fmt.Sprintf(":%s", cfg.ServerPort)
 	log.Printf("Starting JioSaavn API server on %s", serverAddr)
@@ -67,4 +72,22 @@ func main() {
 	if err := r.Run(serverAddr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+// keepAlive periodically pings the deployed endpoint to prevent Render from idling.
+func keepAlive(url string, interval time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			<-ticker.C
+			resp, err := http.Get(url)
+			if err != nil {
+				log.Println("⚠️ Keep-alive ping failed:", err)
+				continue
+			}
+			_ = resp.Body.Close()
+			log.Println("✅ Keep-alive ping sent to", url)
+		}
+	}()
 }
