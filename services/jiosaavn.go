@@ -214,6 +214,70 @@ func GetAlbumHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": formatted})
 }
 
+func GetAlbumFromTokenHandler(c *gin.Context) {
+	token := c.Param("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Missing token",
+		})
+		return
+	}
+
+	url := fmt.Sprintf("%s?__call=webapi.get&token=%s&type=album&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0", cfg.JioSaavnBaseURL, token)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to fetch album",
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	// Read the body once
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to read response body",
+		})
+		return
+	}
+
+	// Debug log if needed
+	// fmt.Println(string(bodyBytes))
+
+	// Parse JSON
+	var raw map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to parse JSON: " + err.Error(),
+		})
+		return
+	}
+
+	// Extract album data
+	list, ok := raw["list"]
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Album list not found",
+		})
+		return
+	}
+
+	formatted := utils.FormatAlbumFromToken(list)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    formatted,
+	})
+}
+
+
+
 // GetArtistHandler retrieves detailed information about an artist
 // @Summary      Get artist details
 // @Description  Returns detailed information about an artist including bio, top songs, and albums
