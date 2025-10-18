@@ -45,31 +45,31 @@ func FormatSong(data map[string]interface{}) map[string]interface{} {
 func FormatSongFromToken(data map[string]interface{}) map[string]interface{} {
 	// Extract more_info object
 	moreInfo, _ := data["more_info"].(map[string]interface{})
-	
+
 	// Get encrypted media URL and decrypt it
 	encryptedURL := GetString(moreInfo, "encrypted_media_url")
 	mediaURL := DecryptURL(encryptedURL)
-	
+
 	// Determine max available quality
 	has320 := GetString(moreInfo, "320kbps") == "true"
 	maxQuality := "_160.mp4"
 	if has320 {
 		maxQuality = "_320.mp4"
 	}
-	
+
 	// Build download URLs
 	downloadURLs := []map[string]string{
 		{"quality": "96kbps", "url": strings.Replace(mediaURL, maxQuality, "_96.mp4", 1)},
 		{"quality": "160kbps", "url": strings.Replace(mediaURL, maxQuality, "_160.mp4", 1)},
 	}
-	
+
 	if has320 {
 		downloadURLs = append(downloadURLs, map[string]string{
 			"quality": "320kbps",
 			"url":     mediaURL,
 		})
 	}
-	
+
 	// Build image array with multiple sizes
 	imageURL := GetString(data, "image")
 	// Replace 150x150 with different sizes (API returns 150x150 by default)
@@ -78,34 +78,34 @@ func FormatSongFromToken(data map[string]interface{}) map[string]interface{} {
 		{"quality": "150x150", "url": imageURL},
 		{"quality": "500x500", "url": strings.Replace(imageURL, "150x150", "500x500", 1)},
 	}
-	
+
 	// Parse duration
 	durationStr := GetString(moreInfo, "duration")
 	duration := 0
 	if durationStr != "" {
 		duration, _ = strconv.Atoi(durationStr)
 	}
-	
+
 	// Parse explicit content
 	explicitContent := GetString(data, "explicit_content") == "1"
-	
+
 	// Parse play count
 	playCountStr := GetString(data, "play_count")
 	playCount := 0
 	if playCountStr != "" {
 		playCount, _ = strconv.Atoi(playCountStr)
 	}
-	
+
 	// Parse has lyrics
 	hasLyrics := GetString(moreInfo, "has_lyrics") == "true"
-	
+
 	// Build artists from artistMap
 	artistMap, _ := moreInfo["artistMap"].(map[string]interface{})
-	
+
 	primaryArtists := buildArtistsFromMap(artistMap, "primary_artists")
 	featuredArtists := buildArtistsFromMap(artistMap, "featured_artists")
 	allArtists := buildArtistsFromMap(artistMap, "artists")
-	
+
 	// Ensure arrays are not nil
 	if primaryArtists == nil {
 		primaryArtists = []map[string]interface{}{}
@@ -116,7 +116,7 @@ func FormatSongFromToken(data map[string]interface{}) map[string]interface{} {
 	if allArtists == nil {
 		allArtists = []map[string]interface{}{}
 	}
-	
+
 	return map[string]interface{}{
 		"id":              GetString(data, "id"),
 		"name":            GetString(data, "title"),
@@ -152,28 +152,28 @@ func buildArtistsFromMap(artistMap map[string]interface{}, key string) []map[str
 	if artistMap == nil {
 		return []map[string]interface{}{}
 	}
-	
+
 	artistsRaw, ok := artistMap[key]
 	if !ok {
 		return []map[string]interface{}{}
 	}
-	
+
 	artistsArray, ok := artistsRaw.([]interface{})
 	if !ok {
 		return []map[string]interface{}{}
 	}
-	
+
 	result := make([]map[string]interface{}, 0, len(artistsArray))
 	for _, artistRaw := range artistsArray {
 		artist, ok := artistRaw.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		
+
 		result = append(result, map[string]interface{}{
-			"id":    GetString(artist, "id"),
-			"name":  GetString(artist, "name"),
-			"role":  GetString(artist, "role"),
+			"id":   GetString(artist, "id"),
+			"name": GetString(artist, "name"),
+			"role": GetString(artist, "role"),
 			"image": []map[string]string{
 				{
 					"quality": "50x50",
@@ -192,7 +192,7 @@ func buildArtistsFromMap(artistMap map[string]interface{}, key string) []map[str
 			"url":  GetString(artist, "perma_url"),
 		})
 	}
-	
+
 	return result
 }
 
@@ -297,6 +297,31 @@ func BuildImageArray(imageURL string) []map[string]string {
 		{"quality": "150x150", "url": strings.Replace(imageURL, "500x500", "150x150", 1)},
 		{"quality": "500x500", "url": imageURL},
 	}
+}
+	
+type Song struct {
+	ID        string `json:"id"`
+}
+func FormatAlbumFromToken(listInterface interface{}) []Song {
+	songs := []Song{}
+	listSlice, ok := listInterface.([]interface{})
+	if !ok {
+		return songs // empty if type assertion fails
+	}
+	for _, item := range listSlice {
+		songMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		var s Song
+		if id, ok := songMap["id"].(string); ok {
+			s.ID = id
+		}
+		songs = append(songs, s)
+	}
+	return songs
+
 }
 
 // FormatArtistDetails formats artist details response
