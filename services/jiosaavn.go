@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"jioSaavnAPI/config"
 	"jioSaavnAPI/utils"
 	"net/http"
@@ -46,10 +47,11 @@ func GetSongHandler(c *gin.Context) {
 		})
 		return
 	}
+	fmt.Println(resp.Body)
 	defer resp.Body.Close()
-
 	var raw map[string]map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		fmt.Print(raw)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Failed to parse response",
@@ -69,54 +71,81 @@ func GetSongHandler(c *gin.Context) {
 	formatted := utils.FormatSongDetailed(songData)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": []any{formatted}})
 }
-
-// GetSongIdHandler retrieves song ID using a token
-// @Summary      Get song ID by token
-// @Description  Returns the song ID corresponding to a given token
+// GetSongFromTokenHandler retrieves song information using a token
+// @Summary      Get song details from token
+// @Description  Returns detailed information about a song using a token
+// @Tags         Songs
+// @Accept       json
+// @Produce      json
 func GetSongFromTokenHandler(c *gin.Context) {
-	token := c.Param("token")
-	if token == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Missing token",
-		})
-		return
-	}
-
-	url := fmt.Sprintf("%s?__call=webapi.get&token=%s&type=song&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0", cfg.JioSaavnBaseURL, token)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to fetch song ID",
-		})
-		return
-	}
-	defer resp.Body.Close()
-
-	var raw map[string]map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to parse response",
-		})
-		return
-	}
-
-	songData, ok := raw[token]
-	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Song not found",
-		})
-		return
-	}
-
-	formatted := utils.FormatSongDetailed(songData)
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": []any{formatted}})
+    token := c.Param("token")
+    if token == "" {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "success": false,
+            "error":   "Missing token",
+        })
+        return
+    }
+    
+    url := fmt.Sprintf("%s?__call=webapi.get&token=%s&type=song&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0", cfg.JioSaavnBaseURL, token)
+    
+    resp, err := http.Get(url)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "success": false,
+            "error":   "Failed to fetch song",
+        })
+        return
+    }
+    defer resp.Body.Close()
+    
+    if resp.StatusCode != http.StatusOK {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "success": false,
+            "error":   fmt.Sprintf("API returned status: %d", resp.StatusCode),
+        })
+        return
+    }
+    
+    bodyBytes, err := io.ReadAll(resp.Body)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "success": false,
+            "error":   "Failed to read response body",
+        })
+        return
+    }
+    
+    var response struct {
+        Songs []map[string]interface{} `json:"songs"`
+    }
+    
+    if err := json.Unmarshal(bodyBytes, &response); err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "success": false,
+            "error":   "Failed to parse response: " + err.Error(),
+        })
+        return
+    }
+    
+    if len(response.Songs) == 0 {
+        c.JSON(http.StatusNotFound, gin.H{
+            "success": false,
+            "error":   "Song not found",
+        })
+        return
+    }
+    
+    songData := response.Songs[0]
+    
+    // Use the new formatting function
+    formatted := utils.FormatSongFromToken(songData)
+    
+    c.JSON(http.StatusOK, gin.H{
+        "success": true,
+        "data":    []interface{}{formatted},
+    })
 }
-
 // GetAlbumHandler retrieves detailed information about an album
 // @Summary      Get album details
 // @Description  Returns detailed information about an album including songs and artists
