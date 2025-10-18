@@ -5,7 +5,7 @@ FROM golang:1.23-alpine AS builder
 RUN apk add --no-cache git
 
 # Set working directory
-WORKDIR /app
+WORKDIR /
 
 # Copy go mod files
 COPY go.mod go.sum ./
@@ -28,7 +28,7 @@ RUN apk --no-cache add ca-certificates
 WORKDIR /root/
 
 # Copy the binary from builder
-COPY --from=builder /app/main .
+COPY --from=builder /main .
 
 # Copy config if you have a config file
 # COPY --from=builder /app/config.yaml .
