@@ -298,10 +298,32 @@ func BuildImageArray(imageURL string) []map[string]string {
 		{"quality": "500x500", "url": imageURL},
 	}
 }
-	
+
 type Song struct {
-	ID        string `json:"id"`
+	ID string `json:"id"`
 }
+
+func FormatPlaylistFromToken(listInterface interface{}) []Song {
+	songs := []Song{}
+	
+	listSlice, ok := listInterface.([]interface{})
+	if !ok {
+		return songs // empty if type assertion fails
+	}
+	for _, item := range listSlice {
+		songMap, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		var s Song
+		if id, ok := songMap["id"].(string); ok {
+			s.ID = id
+		}
+		songs = append(songs, s)
+	}
+	return songs
+}
+
 func FormatAlbumFromToken(listInterface interface{}) []Song {
 	songs := []Song{}
 	listSlice, ok := listInterface.([]interface{})
