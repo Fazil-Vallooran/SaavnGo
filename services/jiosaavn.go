@@ -213,6 +213,8 @@ func GetAlbumHandler(c *gin.Context) {
 	formatted := utils.FormatAlbum(albumData)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": formatted})
 }
+
+
 func GetPlaylistFromTokenHandler(c *gin.Context) {
 	token := c.Param("token")
 	if token == "" {
@@ -231,31 +233,33 @@ func GetPlaylistFromTokenHandler(c *gin.Context) {
 		})
 		return
 	}
+	
 	defer resp.Body.Close()
 
-	var raw map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+	// Read the body once
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"error":   "Failed to parse response",
+			"error":   "Failed to read response body",
 		})
 		return
 	}
 
-	// Check if playlist data exists
-	if len(raw) == 0 {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Playlist not found",
-		})
-		return
-	}
-	// Extract album data
+	var raw map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &raw); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"error":   "Failed to parse JSON: " + err.Error(),
+			})
+			return
+		}
+	// Extract playlist data
 	list, ok := raw["list"]
 	if !ok {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error":   "Album list not found",
+			"error":   "Playlist list not found",
 		})
 		return
 	}
@@ -269,6 +273,7 @@ func GetPlaylistFromTokenHandler(c *gin.Context) {
 }
 
 func GetAlbumFromTokenHandler(c *gin.Context) {
+	
 	token := c.Param("token")
 	if token == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
