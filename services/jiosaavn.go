@@ -213,6 +213,60 @@ func GetAlbumHandler(c *gin.Context) {
 	formatted := utils.FormatAlbum(albumData)
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": formatted})
 }
+func GetPlaylistFromTokenHandler(c *gin.Context) {
+	token := c.Param("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Missing token",
+		})
+		return
+	}
+	url := fmt.Sprintf("%s?__call=webapi.get&token=%s&type=playlist&p=1&n=50&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0", cfg.JioSaavnBaseURL, token)
+	resp, err := http.Get(url)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to fetch playlist",
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	var raw map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to parse response",
+		})
+		return
+	}
+
+	// Check if playlist data exists
+	if len(raw) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Playlist not found",
+		})
+		return
+	}
+	// Extract album data
+	list, ok := raw["list"]
+	if !ok {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Album list not found",
+		})
+		return
+	}
+
+	// Format the playlist details
+	formatted := utils.FormatPlaylistFromToken(list)
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    formatted,
+	})
+}
 
 func GetAlbumFromTokenHandler(c *gin.Context) {
 	token := c.Param("token")

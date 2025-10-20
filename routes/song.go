@@ -26,6 +26,10 @@ func RegisterRoutes(r *gin.Engine) {
 	// Artist routes
 	r.GET("/artist/:id", services.GetArtistHandler)
 	r.GET("/artist/:id/", services.GetArtistHandler)
+
+	// Playlist routes
+	r.GET("/playlists/:token", services.GetPlaylistFromTokenHandler)
+	r.GET("/playlists/:token/", services.GetPlaylistFromTokenHandler)
 	
 	// Search routes
 	r.GET("/search", services.FullSearchHandler)
