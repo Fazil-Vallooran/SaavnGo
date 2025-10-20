@@ -219,60 +219,47 @@ func GetAlbumHandler(c *gin.Context) {
 func GetPlaylistFromTokenHandler(c *gin.Context) {
 	token := c.Param("token")
 	if token == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"success": false,
-			"error":   "Missing token",
-		})
+		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Missing token"})
 		return
 	}
-	url := fmt.Sprintf("%s?__call=webapi.get&token=%s&type=playlist&p=1&n=50&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0", cfg.JioSaavnBaseURL, token)
+
+	url := fmt.Sprintf("%s?__call=webapi.get&token=%s&type=playlist&p=1&n=50&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0",
+		cfg.JioSaavnBaseURL, token)
+
 	resp, err := http.Get(url)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to fetch playlist",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch playlist"})
 		return
 	}
-
 	defer resp.Body.Close()
 
-	// Read the body once
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to read response body",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read response body"})
 		return
 	}
-
-	// DEBUG: log the actual response body from JioSaavn
-	fmt.Println("JioSaavn response body:", string(bodyBytes))
 
 	var raw map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Failed to parse JSON: " + err.Error(),
-		})
-		return
-	}
-	// Extract playlist data
-	moreInfo, ok := raw["more_info"].(map[string]interface{})
-	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{
-			"success": false,
-			"error":   "Playlist more_info not found",
-		})
+		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to parse JSON"})
 		return
 	}
 
-	formatted := FormatPlaylistFromContents(moreInfo["contents"])
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"data":    formatted,
-	})
+	var songs []utils.Song
+
+	// Try the "list" field first (some playlists might have it)
+	if list, ok := raw["list"]; ok {
+		songs = utils.FormatAlbumFromToken(list)
+	}
+
+	// If empty, fallback to "more_info.contents"
+	if len(songs) == 0 {
+		if moreInfo, ok := raw["more_info"].(map[string]interface{}); ok {
+			songs = utils.FormatPlaylistFromContents(moreInfo["contents"])
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"success": true, "data": songs})
 }
 
 func GetAlbumFromTokenHandler(c *gin.Context) {
