@@ -305,7 +305,7 @@ type Song struct {
 
 func FormatPlaylistFromToken(listInterface interface{}) []Song {
 	songs := []Song{}
-	
+
 	listSlice, ok := listInterface.([]interface{})
 	if !ok {
 		return songs // empty if type assertion fails
@@ -344,6 +344,21 @@ func FormatAlbumFromToken(listInterface interface{}) []Song {
 	}
 	return songs
 
+}
+
+func FormatPlaylistFromContents(contents interface{}) []Song {
+	songs := []Song{}
+
+	contentStr, ok := contents.(string)
+	if !ok || contentStr == "" {
+		return songs
+	}
+
+	ids := strings.Split(contentStr, ",")
+	for _, id := range ids {
+		songs = append(songs, Song{ID: id})
+	}
+	return songs
 }
 
 // FormatArtistDetails formats artist details response
