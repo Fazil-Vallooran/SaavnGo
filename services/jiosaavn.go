@@ -245,6 +245,9 @@ func GetPlaylistFromTokenHandler(c *gin.Context) {
 		})
 		return
 	}
+	
+	// DEBUG: log the actual response body from JioSaavn
+	fmt.Println("JioSaavn response body:", string(bodyBytes))
 
 	var raw map[string]interface{}
 		if err := json.Unmarshal(bodyBytes, &raw); err != nil {
