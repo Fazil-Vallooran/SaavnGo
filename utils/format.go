@@ -303,47 +303,142 @@ type Song struct {
 	ID string `json:"id"`
 }
 
-func FormatPlaylistFromToken(listInterface interface{}) []Song {
-	songs := []Song{}
-
-	listSlice, ok := listInterface.([]interface{})
-	if !ok {
-		return songs // empty if type assertion fails
+func FormatAlbumFromToken(listInterface interface{}) map[string]interface{} {
+	// Initialize response structure with safe defaults
+	result := map[string]interface{}{
+		"id":       "",
+		"name":     "",
+		"type":     "album",
+		"image":    "[]map[string]string{}",
+		"songs":    []map[string]interface{}{},
 	}
+
+	// Type assert to slice
+	listSlice, ok := listInterface.([]interface{})
+	if !ok || len(listSlice) == 0 {
+		return result
+	}
+
+	// Extract album metadata from first song
+	// Token API embeds album info in each song, so we extract it once
+	if firstSong, ok := listSlice[0].(map[string]interface{}); ok {
+		// Extract album ID (may be in different locations)
+		if albumID := GetString(firstSong, "id"); albumID != "" {
+			result["id"] = albumID
+		} 
+		// Extract album name
+		if albumName := GetString(firstSong, "title"); albumName != "" {
+			albumName = strings.TrimSpace(albumName)
+			result["title"] = strings.TrimSpace(albumName)
+		}
+
+		// Extract and format image URL
+		if imageURL := GetString(firstSong, "image"); imageURL != "" {
+			formattedImage := formatImageURL(imageURL)
+			result["image"] = BuildImageArray(formattedImage)
+		}
+	}
+
+	// Format all songs in the album
+	songs := make([]map[string]interface{}, 0, len(listSlice))
 	for _, item := range listSlice {
 		songMap, ok := item.(map[string]interface{})
 		if !ok {
 			continue
 		}
-		var s Song
-		if id, ok := songMap["id"].(string); ok {
-			s.ID = id
-		}
-		songs = append(songs, s)
+
+		// Use the existing formatAlbumSong function for consistency
+		formattedSong := formatAlbumSongToken(songMap)
+		songs = append(songs, formattedSong)
 	}
-	return songs
+
+	result["songs"] = songs
+	result["songCount"] = len(songs)
+
+	return result
 }
 
-func FormatAlbumFromToken(listInterface interface{}) []Song {
-	songs := []Song{}
-	listSlice, ok := listInterface.([]interface{})
+// FormatPlaylistFromToken extracts playlist metadata and song list from a token response.
+// Similar to albums, but playlists may have different metadata fields.
+func FormatPlaylistFromToken(playlistInterface interface{}) map[string]interface{} {
+	result := map[string]interface{}{
+		"id":         "",
+		"title":      "",
+		"subtitle":   "",
+		"type":       "playlist",
+		"image":      []map[string]string{},
+		"language":   "",
+		"url":        "",
+		"songCount":  0,
+		"description": "",
+		"songs":      []map[string]interface{}{},
+	}
+
+	playlistMap, ok := playlistInterface.(map[string]interface{})
 	if !ok {
-		return songs // empty if type assertion fails
+		return result
 	}
-	for _, item := range listSlice {
-		songMap, ok := item.(map[string]interface{})
-		if !ok {
-			continue
-		}
 
-		var s Song
-		if id, ok := songMap["id"].(string); ok {
-			s.ID = id
-		}
-		songs = append(songs, s)
+	// --- Extract top-level playlist metadata ---
+	result["id"] = GetString(playlistMap, "id")
+	result["title"] = GetString(playlistMap, "title")
+	result["subtitle"] = GetString(playlistMap, "subtitle")
+	result["language"] = GetString(playlistMap, "language")
+	result["url"] = GetString(playlistMap, "perma_url")
+	result["description"] = GetString(playlistMap, "header_desc")
+
+	if imageURL := GetString(playlistMap, "image"); imageURL != "" {
+		result["image"] = BuildImageArray(formatImageURL(imageURL))
 	}
-	return songs
 
+	// --- Extract songs from "list" field ---
+	listRaw, ok := playlistMap["list"].([]interface{})
+	if ok && len(listRaw) > 0 {
+		songs := make([]map[string]interface{}, 0, len(listRaw))
+		for _, songItem := range listRaw {
+			if songMap, ok := songItem.(map[string]interface{}); ok {
+				formatted := formatAlbumSong(songMap)
+				songs = append(songs, formatted)
+			}
+		}
+		result["songs"] = songs
+		result["songCount"] = len(songs)
+	}
+
+	return result
+}
+
+
+// formatImageURL ensures the image URL uses the 500x500 resolution.
+// Handles three common patterns in the API:
+// 1. URLs with "150x150" that need replacement
+// 2. URLs with "50x50" that need replacement  
+// 3. URLs without resolution suffix that need "-500x500" appended
+func formatImageURL(imageURL string) string {
+	if imageURL == "" {
+		return ""
+	}
+
+	// Already has 500x500, return as-is
+	if strings.Contains(imageURL, "500x500") {
+		return imageURL
+	}
+
+	// Replace common smaller sizes with 500x500
+	if strings.Contains(imageURL, "150x150") {
+		return strings.Replace(imageURL, "150x150", "500x500", 1)
+	}
+
+	if strings.Contains(imageURL, "50x50") {
+		return strings.Replace(imageURL, "50x50", "500x500", 1)
+	}
+
+	// Append 500x500 before .jpg extension if no size specified
+	if strings.HasSuffix(imageURL, ".jpg") {
+		return strings.Replace(imageURL, ".jpg", "-500x500.jpg", 1)
+	}
+
+	return imageURL
 }
 
 func FormatPlaylistFromContents(contents interface{}) []Song {
@@ -893,6 +988,16 @@ func formatAlbumSong(data map[string]interface{}) map[string]interface{} {
 	}
 }
 
+// formatAlbumSong formats songs from album endpoint which have a different structure
+func formatAlbumSongToken(data map[string]interface{}) map[string]interface{} {
+
+	return map[string]interface{}{
+		"id":              GetString(data, "id"),
+		"name":            strings.TrimSpace(GetString(data, "title")),
+		"type":            "song",
+		
+	}
+}
 // EscapeString URL-encodes special characters in a string
 func EscapeString(str string) string {
 	replacer := strings.NewReplacer(
@@ -983,17 +1088,6 @@ func formatSongSearchItem(data map[string]interface{}) map[string]interface{} {
 		"image":       images,
 		"downloadUrl": downloadUrls,
 	}
-}
-
-// Helper for optional numeric (can be nil or float64)
-func getOptionalNumber(v interface{}) interface{} {
-	if v == nil {
-		return nil
-	}
-	if f, ok := v.(float64); ok {
-		return f
-	}
-	return nil
 }
 
 // FormatSongSearch formats search response containing multiple songs

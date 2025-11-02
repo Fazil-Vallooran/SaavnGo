@@ -2,7 +2,7 @@ basePath: /
 host: localhost:8080
 info:
   contact:
-    email: your-email@example.com
+    email: ophi.social@gmail.com
     name: API Support
   description: A public read-only API for JioSaavn music data
   license:
@@ -43,6 +43,44 @@ paths:
             additionalProperties: true
             type: object
       summary: Get album details
+      tags:
+      - Albums
+  /album/token/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Returns album information including metadata and formatted songs
+        using a token
+      parameters:
+      - description: Album Token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get album details from token
       tags:
       - Albums
   /artist/{id}:
@@ -110,6 +148,43 @@ paths:
       summary: Get song lyrics
       tags:
       - Lyrics
+  /playlist/token/{token}:
+    get:
+      consumes:
+      - application/json
+      description: Returns minimal playlist information (metadata + song IDs only)
+      parameters:
+      - description: Playlist Token
+        in: path
+        name: token
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get playlist details from token
+      tags:
+      - Playlists
   /search:
     get:
       consumes:

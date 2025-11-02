@@ -216,54 +216,24 @@ func GetAlbumHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"success": true, "data": formatted})
 }
 
-func GetPlaylistFromTokenHandler(c *gin.Context) {
-	token := c.Param("token")
-	if token == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"success": false, "error": "Missing token"})
-		return
-	}
-
-	url := fmt.Sprintf("%s?__call=webapi.get&token=%s&type=playlist&p=1&n=50&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0",
-		cfg.JioSaavnBaseURL, token)
-
-	resp, err := http.Get(url)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to fetch playlist"})
-		return
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to read response body"})
-		return
-	}
-
-	var raw map[string]interface{}
-	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"success": false, "error": "Failed to parse JSON"})
-		return
-	}
-
-	var songs []utils.Song
-
-	// Try the "list" field first (some playlists might have it)
-	if list, ok := raw["list"]; ok {
-		songs = utils.FormatAlbumFromToken(list)
-	}
-
-	// If empty, fallback to "more_info.contents"
-	if len(songs) == 0 {
-		if moreInfo, ok := raw["more_info"].(map[string]interface{}); ok {
-			songs = utils.FormatPlaylistFromContents(moreInfo["contents"])
-		}
-	}
-
-	c.JSON(http.StatusOK, gin.H{"success": true, "data": songs})
-}
-
+// GetAlbumFromTokenHandler retrieves album information using a token.
+// The token endpoint returns a different structure than the detail endpoint:
+// - Uses "list" field containing an array of songs
+// - Each song has embedded album metadata
+// - Returns complete album object with all songs formatted
+//
+// @Summary      Get album details from token
+// @Description  Returns album information including metadata and formatted songs using a token
+// @Tags         Albums
+// @Accept       json
+// @Produce      json
+// @Param        token   path      string  true  "Album Token"
+// @Success      200     {object}  map[string]interface{}
+// @Failure      400     {object}  map[string]interface{}
+// @Failure      404     {object}  map[string]interface{}
+// @Failure      500     {object}  map[string]interface{}
+// @Router       /album/token/{token} [get]
 func GetAlbumFromTokenHandler(c *gin.Context) {
-
 	token := c.Param("token")
 	if token == "" {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -273,7 +243,11 @@ func GetAlbumFromTokenHandler(c *gin.Context) {
 		return
 	}
 
-	url := fmt.Sprintf("%s?__call=webapi.get&token=%s&type=album&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0", cfg.JioSaavnBaseURL, token)
+	url := fmt.Sprintf(
+		"%s?__call=webapi.get&token=%s&type=album&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0",
+		cfg.JioSaavnBaseURL,
+		token,
+	)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -285,7 +259,14 @@ func GetAlbumFromTokenHandler(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	// Read the body once
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("API returned status: %d", resp.StatusCode),
+		})
+		return
+	}
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -295,10 +276,6 @@ func GetAlbumFromTokenHandler(c *gin.Context) {
 		return
 	}
 
-	// Debug log if needed
-	// fmt.Println(string(bodyBytes))
-
-	// Parse JSON
 	var raw map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -308,23 +285,153 @@ func GetAlbumFromTokenHandler(c *gin.Context) {
 		return
 	}
 
-	// Extract album data
+	// Extract "list" field containing song array with embedded album metadata
 	list, ok := raw["list"]
 	if !ok {
 		c.JSON(http.StatusNotFound, gin.H{
 			"success": false,
-			"error":   "Album list not found",
+			"error":   "Album data not found in response",
 		})
 		return
 	}
 
+	// Format album with minimal data (metadata + song IDs only)
 	formatted := utils.FormatAlbumFromToken(list)
+
+	// Validate we got meaningful data
+	songCount, _ := formatted["songCount"].(int)
+	if formatted["name"] == "" && songCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Album not found or has no songs",
+		})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    formatted,
 	})
 }
 
+// GetPlaylistFromTokenHandler retrieves minimal playlist information using a token.
+// Returns lightweight data: playlist metadata + song IDs only (no full song details).
+// Playlists can have two different response structures handled internally.
+//
+// @Summary      Get playlist details from token
+// @Description  Returns minimal playlist information (metadata + song IDs only)
+// @Tags         Playlists
+// @Accept       json
+// @Produce      json
+// @Param        token   path      string  true  "Playlist Token"
+// @Success      200     {object}  map[string]interface{}
+// @Failure      400     {object}  map[string]interface{}
+// @Failure      404     {object}  map[string]interface{}
+// @Failure      500     {object}  map[string]interface{}
+// @Router       /playlist/token/{token} [get]
+func GetPlaylistFromTokenHandler(c *gin.Context) {
+	token := c.Param("token")
+	if token == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Missing token",
+		})
+		return
+	}
+
+	url := fmt.Sprintf(
+		"%s?__call=webapi.get&token=%s&type=playlist&p=1&n=50&includeMetaTags=0&ctx=web6dot0&api_version=4&_format=json&_marker=0",
+		cfg.JioSaavnBaseURL,
+		token,
+	)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to fetch playlist",
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   fmt.Sprintf("API returned status: %d", resp.StatusCode),
+		})
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to read response body",
+		})
+		return
+	}
+
+ 	var raw map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to parse JSON",
+		})
+		return
+	}
+
+	var result map[string]interface{}
+
+	// Try "list" field first (contains song objects with metadata)
+	if list, ok := raw["list"]; ok {
+		result = utils.FormatPlaylistFromToken(list)
+	}
+
+	// Fallback to "more_info.contents" (contains comma-separated song IDs)
+	if result == nil || result["songCount"].(int) == 0 {
+		if moreInfo, ok := raw["more_info"].(map[string]interface{}); ok {
+			if contents, ok := moreInfo["contents"]; ok {
+				// FormatPlaylistFromContents returns []Song with just IDs
+				minimalSongs := utils.FormatPlaylistFromContents(contents)
+				
+				// Convert to []map[string]string for consistency
+				songs := make([]map[string]string, len(minimalSongs))
+				for i, song := range minimalSongs {
+					songs[i] = map[string]string{
+						"id": song.ID,
+					}
+				}
+
+				// Build minimal playlist response from root-level fields
+				result = map[string]interface{}{
+					"id":        utils.GetString(raw, "id"),
+					"name":      utils.GetString(raw, "title"),
+					"type":      "playlist",
+					"image":     utils.BuildImageArray(utils.GetString(raw, "image")),
+					"url":       utils.GetString(raw, "perma_url"),
+					"language":  utils.GetString(raw, "language"),
+					"songCount": len(songs),
+					"songs":     songs,
+				}
+			}
+		}
+	}
+
+	// Validate we got data
+	if result == nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "Playlist data not found in response",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    result,
+	})
+}
 // GetArtistHandler retrieves detailed information about an artist
 // @Summary      Get artist details
 // @Description  Returns detailed information about an artist including bio, top songs, and albums
@@ -678,25 +785,4 @@ func FullSearchHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, formatted)
-}
-
-// Helper to extract play_count safely
-func getPlayCountFromSong(song map[string]interface{}) int {
-	// Try direct field
-	if playCount, ok := song["play_count"].(string); ok {
-		if count, err := strconv.Atoi(playCount); err == nil {
-			return count
-		}
-	}
-
-	// Try nested in more_info
-	if moreInfo, ok := song["more_info"].(map[string]interface{}); ok {
-		if playCount, ok := moreInfo["play_count"].(string); ok {
-			if count, err := strconv.Atoi(playCount); err == nil {
-				return count
-			}
-		}
-	}
-
-	return 0
 }

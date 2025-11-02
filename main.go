@@ -22,7 +22,7 @@ import (
 // @termsOfService  http://swagger.io/terms/
 
 // @contact.name   API Support
-// @contact.email  your-email@example.com
+// @contact.email  ophi.social@gmail.com
 
 // @license.name  MIT
 // @license.url   http://opensource.org/licenses/MIT

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"html"
 )
 
 // GetString safely extracts a string from a map
@@ -11,9 +12,13 @@ func GetString(data map[string]interface{}, key string) string {
 	if data == nil {
 		return ""
 	}
+
 	if val, ok := data[key]; ok && val != nil {
-		return strings.TrimSpace(fmt.Sprintf("%v", val))
+		str := strings.TrimSpace(fmt.Sprintf("%v", val))
+		// Unescape HTML entities like &quot;, &amp;, &#39;, etc.
+		return html.UnescapeString(str)
 	}
+
 	return ""
 }
 
